@@ -2,7 +2,7 @@
 
 > Your company's knowledge, answered by AI. Lumora turns documents into an assistant that answers with **citations** and takes **actions** (tickets, emails, meetings) through tool calls.
 
-**Live demo:** _LIVE_URL_ · **Stack:** Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Three.js · Vercel AI SDK 7 · Gemini / Groq · Auth.js
+**Live demo:** [lumora-ai-agent.vercel.app](https://lumora-ai-agent.vercel.app) · **Stack:** Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Three.js · Vercel AI SDK 7 · Gemini / Groq · Auth.js
 
 ![Lumora landing page](docs/screenshots/01-hero-dark.png)
 
