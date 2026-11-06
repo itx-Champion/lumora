@@ -10,6 +10,30 @@ Lumora is a portfolio product I designed and engineered end to end: brand, marke
 
 ---
 
+## What is Lumora?
+
+Every company has answers buried in documents: HR policies, refund rules, security guidelines, reports. Finding the right paragraph takes time, so people ask colleagues instead.
+
+Lumora fixes that:
+
+1. **Add your documents.** Upload PDFs, Markdown, text, CSV or JSON. Lumora splits them into searchable passages.
+2. **Ask in plain language.** For example: *"Can a customer get a refund after 3 weeks?"*
+3. **Get an answer you can verify.** Every claim carries a numbered citation. Click it to see the exact passage. If the documents don't cover the question, Lumora says so instead of guessing.
+4. **Hand off the follow-up.** Say *"Open a ticket for billing"*, *"Draft an email to the customer"* or *"Schedule a meeting with support"*, and the agent does it. Results appear in the Actions inbox.
+5. **See what your team needs.** The dashboard tracks questions, answer rate and response time, plus the **knowledge gaps**: questions your documents couldn't answer.
+
+## Try the demo in 60 seconds
+
+1. Open **[lumora-ai-agent.vercel.app](https://lumora-ai-agent.vercel.app)**, then click **Try the live demo**, then **Enter demo workspace**. No sign-up needed; the workspace stays private to your browser.
+2. Go to **Assistant** and pick a suggested question, or ask: *"Who approves refunds over $500?"*
+3. Click a citation number such as **[1]** to read the source passage.
+4. Ask: *"Open a ticket for billing to process the refund"*, then check **Actions**.
+5. In **Knowledge**, upload one of your own PDFs and ask about it. The **Retrieval playground** shows which passages the AI receives, with relevance scores.
+
+![Assistant answering with citations and creating a ticket](docs/screenshots/09-assistant.png)
+
+---
+
 ## Highlights
 
 | | |
@@ -23,11 +47,36 @@ Lumora is a portfolio product I designed and engineered end to end: brand, marke
 
 ## Screenshots
 
-| Assistant with citations and actions | Analytics dashboard |
+### Product
+
+| Analytics dashboard | Knowledge base and retrieval playground |
 |---|---|
-| ![Assistant](docs/screenshots/09-assistant.png) | ![Dashboard](docs/screenshots/08-dashboard.png) |
-| **Knowledge base and retrieval playground** | **Light theme** |
-| ![Knowledge](docs/screenshots/10-knowledge.png) | ![Light theme](docs/screenshots/02-hero-light.png) |
+| ![Dashboard](docs/screenshots/08-dashboard.png) | ![Knowledge](docs/screenshots/10-knowledge.png) |
+| **Actions inbox** | **Sign in** |
+| ![Actions](docs/screenshots/11-actions.png) | ![Login](docs/screenshots/07-login.png) |
+
+### Marketing site
+
+| Features (bento grid) | How it works (scroll-driven) |
+|---|---|
+| ![Features](docs/screenshots/03-features.png) | ![How it works](docs/screenshots/04-how-it-works.png) |
+| **Animated live demo** | **Pricing** |
+| ![Live demo](docs/screenshots/05-live-demo.png) | ![Pricing](docs/screenshots/06-pricing.png) |
+| **Light theme** | **Mobile** |
+| ![Light theme](docs/screenshots/02-hero-light.png) | <img src="docs/screenshots/12-mobile-hero.png" alt="Mobile hero" width="220"> <img src="docs/screenshots/13-mobile-dashboard.png" alt="Mobile dashboard" width="220"> |
+
+## How it works
+
+In plain terms, every question goes through four steps:
+
+| Step | What happens | Where in the code |
+|---|---|---|
+| **1. Ingest** | Uploaded files are parsed (PDFs on the server with `unpdf`), split into passages at section headings, and stored in the browser's IndexedDB. | `lib/rag/chunk.ts`, `api/parse` |
+| **2. Retrieve** | The question is matched against every passage with BM25 ranking. The top six relevant passages are kept; weak matches are dropped. | `lib/rag/bm25.ts` |
+| **3. Answer** | The passages are numbered and sent with the question to the model, which must answer only from them and cite each claim. The answer streams back word by word. | `api/chat`, `lib/ai/prompt.ts` |
+| **4. Act** | If you ask for an action, the model calls a tool (`createTicket`, `draftEmail`, `scheduleMeeting`). The result appears as a card in the chat and in the Actions inbox. | `lib/ai/tools.ts` |
+
+If Gemini is unavailable (missing key, quota, outage), the same request moves to Groq. If neither is configured, a keyless mode answers by extracting the best-matching sentences from the passages, so the demo always works.
 
 ## Architecture
 
