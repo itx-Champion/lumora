@@ -13,5 +13,7 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     testTimeout: 30_000,
+    // Migrating and seeding an in-process Postgres can take a while on slow CI machines.
+    hookTimeout: 60_000,
   },
 })
