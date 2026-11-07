@@ -64,6 +64,12 @@ Lumora fixes that:
 | **Actions inbox** | **Sign in** |
 | ![Actions](docs/screenshots/11-actions.png) | ![Login](docs/screenshots/07-login.png) |
 
+| **Workspace templates** | **HR assistant with follow-up suggestions** |
+|---|---|
+| ![Templates](docs/screenshots/14-workspace-templates.png) | ![HR assistant](docs/screenshots/15-hr-assistant.png) |
+| **Website import** | |
+| ![Website import](docs/screenshots/16-website-import.png) | |
+
 ### Marketing site
 
 | Features (bento grid) | How it works (scroll-driven) |

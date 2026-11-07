@@ -6,8 +6,8 @@ import { useWorkspace } from "@/components/app/workspace-provider"
 
 /** Shows exactly which passages the assistant would receive for a query, with BM25 scores. */
 export function RetrievalTester() {
-  const { index } = useWorkspace()
-  const [query, setQuery] = useState("refund annual plan")
+  const { index, template } = useWorkspace()
+  const [query, setQuery] = useState(template.suggested[0] ?? "")
   const deferred = useDeferredValue(query)
   const results = useMemo(() => index.search(deferred, 4), [index, deferred])
   const top = results[0]?.score ?? 1

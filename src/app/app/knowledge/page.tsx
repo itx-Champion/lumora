@@ -31,7 +31,7 @@ function formatSize(bytes: number) {
 const dateFmt = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" })
 
 function KnowledgeView() {
-  const { workspace, chunks, store } = useWorkspace()
+  const { workspace, chunks, store, activeWorkspace } = useWorkspace()
   const params = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -144,7 +144,7 @@ function KnowledgeView() {
           </div>
         </div>
 
-        <RetrievalTester />
+        <RetrievalTester key={activeWorkspace.id} />
       </div>
 
       <Sheet open={openDoc !== null} onOpenChange={(o) => !o && setOpen(null)}>
