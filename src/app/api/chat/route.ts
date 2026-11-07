@@ -16,7 +16,10 @@ import { writeDemoAnswer } from "@/lib/ai/demo-responder"
 import type { LumoraUIMessage } from "@/lib/ai/types"
 import { clientKey, rateLimit } from "@/lib/rate-limit"
 
-export const maxDuration = 30
+export const maxDuration = 60
+
+/** A provider that hasn't started answering by now is skipped in favour of the next one. */
+const FIRST_TOKEN_TIMEOUT_MS = 15_000
 
 const sourceSchema = z.object({
   n: z.number().int().min(1).max(12),
@@ -43,9 +46,17 @@ const bodySchema = z.object({
  */
 async function probe(stream: ReadableStream<TextStreamPart<AgentTools>>) {
   const reader = stream.getReader()
+  const deadline = Date.now() + FIRST_TOKEN_TIMEOUT_MS
   try {
     while (true) {
-      const { value, done } = await reader.read()
+      const remaining = deadline - Date.now()
+      if (remaining <= 0) return false
+      const next = await Promise.race([
+        reader.read(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), remaining)),
+      ])
+      if (next === null) return false
+      const { value, done } = next
       if (done) return true
       if (value.type === "error") return false
       if (["text-delta", "tool-call", "tool-input-start", "reasoning-delta", "finish"].includes(value.type)) {

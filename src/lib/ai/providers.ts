@@ -10,8 +10,9 @@ export type ModelCandidate = {
   model: LanguageModel
 }
 
-// The "-latest" alias tracks Google's current Flash model, so the app survives model retirements.
-export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-flash-latest"
+// The "-latest" alias tracks Google's current Flash-Lite model, so the app survives model
+// retirements. Flash-Lite answers in a few seconds and has the most generous free-tier limits.
+export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-flash-lite-latest"
 export const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile"
 
 /**
