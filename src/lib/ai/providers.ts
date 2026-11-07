@@ -10,11 +10,15 @@ export type ModelCandidate = {
   model: LanguageModel
 }
 
-export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash"
+// The "-latest" alias tracks Google's current Flash model, so the app survives model retirements.
+export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-flash-latest"
 export const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile"
 
-/** Providers in priority order. Only those with an API key configured are returned. */
-export function getModelCandidates(): ModelCandidate[] {
+/**
+ * Providers in priority order. Only those with an API key configured are returned.
+ * A preferred provider moves to the front; the rest remain as fallbacks.
+ */
+export function getModelCandidates(preference: "auto" | "gemini" | "groq" = "auto"): ModelCandidate[] {
   const candidates: ModelCandidate[] = []
 
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -27,6 +31,7 @@ export function getModelCandidates(): ModelCandidate[] {
     candidates.push({ mode: "groq", label: GROQ_MODEL, model: groq(GROQ_MODEL) })
   }
 
+  if (preference !== "auto") candidates.sort((a, b) => Number(b.mode === preference) - Number(a.mode === preference))
   return candidates
 }
 

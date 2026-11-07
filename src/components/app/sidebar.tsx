@@ -10,6 +10,7 @@ import { Logo } from "@/components/shared/logo"
 import { ThemeToggle } from "@/components/shared/theme-toggle"
 import { useWorkspace } from "./workspace-provider"
 import { appNav, isActive } from "./nav"
+import { WorkspaceSwitcher } from "./workspace-switcher"
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
@@ -19,8 +20,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col gap-6 p-4">
-      <div className="flex items-center justify-between px-2 pt-1">
-        <Logo />
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-2 pt-1">
+          <Logo />
+        </div>
+        <WorkspaceSwitcher onNavigate={onNavigate} />
       </div>
 
       <Link

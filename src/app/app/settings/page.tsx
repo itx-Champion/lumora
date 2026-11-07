@@ -5,6 +5,7 @@ import { CheckCircle2, CircleDashed, Download, Moon, RotateCcw, Sun } from "luci
 import { toast } from "sonner"
 import { useWorkspace } from "@/components/app/workspace-provider"
 import { useTheme } from "@/lib/theme"
+import { useModelPreference, type ModelPreference } from "@/hooks/use-model-preference"
 import { cn } from "@/lib/utils"
 
 type Status = {
@@ -54,6 +55,7 @@ function StatusRow({ on, label, detail }: { on: boolean; label: string; detail: 
 export default function SettingsPage() {
   const { user, workspace, store } = useWorkspace()
   const { theme, setTheme } = useTheme()
+  const { preference, setPreference } = useModelPreference()
   const [status, setStatus] = useState<Status | null>(null)
 
   useEffect(() => {
@@ -92,6 +94,27 @@ export default function SettingsPage() {
         title="AI models"
         description="Lumora tries each provider in order and falls back automatically. With none configured it answers extractively from your documents."
       >
+        <div className="mb-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Preferred model">
+          {([
+            ["auto", "Auto", "Best available"],
+            ["gemini", "Gemini", "Prefer Google"],
+            ["groq", "Groq", "Prefer Llama"],
+          ] as [ModelPreference, string, string][]).map(([id, label, hint]) => (
+            <button
+              key={id}
+              role="radio"
+              aria-checked={preference === id}
+              onClick={() => setPreference(id)}
+              className={cn(
+                "rounded-xl border p-3 text-left transition-colors",
+                preference === id ? "border-violet ring-2 ring-violet/20" : "hover:bg-foreground/[0.03]"
+              )}
+            >
+              <p className="text-sm font-medium">{label}</p>
+              <p className="text-xs text-muted-foreground">{hint}</p>
+            </button>
+          ))}
+        </div>
         <ul className="divide-y rounded-2xl border bg-card/60">
           <StatusRow
             on={status?.gemini ?? false}

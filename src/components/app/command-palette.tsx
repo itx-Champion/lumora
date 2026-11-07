@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { CornerDownLeft, FileText, MessageSquare, Plus, Search, Sparkles, type LucideIcon } from "lucide-react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import { suggestedQuestions } from "@/lib/demo/sample-docs"
 import { useWorkspace } from "./workspace-provider"
 import { appNav } from "./nav"
 
@@ -13,7 +12,7 @@ type Command = { id: string; group: string; label: string; hint?: string; icon: 
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const router = useRouter()
-  const { workspace } = useWorkspace()
+  const { workspace, template } = useWorkspace()
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
 
@@ -33,7 +32,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         icon: n.icon,
         run: go(n.href),
       })),
-      ...suggestedQuestions.slice(0, 4).map((q) => ({
+      ...template.suggested.slice(0, 4).map((q) => ({
         id: `ask:${q}`,
         group: "Ask Lumora",
         label: q,
@@ -56,7 +55,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         run: go(`/app/knowledge?doc=${d.id}`),
       })) ?? []),
     ]
-  }, [workspace, router, onOpenChange])
+  }, [workspace, template, router, onOpenChange])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()

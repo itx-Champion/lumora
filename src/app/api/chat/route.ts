@@ -32,6 +32,8 @@ const sourceSchema = z.object({
 const bodySchema = z.object({
   messages: z.array(z.custom<LumoraUIMessage>((m) => typeof m === "object" && m !== null)).min(1).max(60),
   sources: z.array(sourceSchema).max(8).default([]),
+  model: z.enum(["auto", "gemini", "groq"]).default("auto"),
+  workspace: z.object({ name: z.string().max(80), company: z.string().max(80) }).optional(),
 })
 
 /**
@@ -86,7 +88,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return Response.json({ error: "Invalid request." }, { status: 400 })
   }
-  const { messages, sources } = parsed.data
+  const { messages, sources, model, workspace } = parsed.data
   const question = lastUserText(messages)
 
   const stream = createUIMessageStream<LumoraUIMessage>({
@@ -96,9 +98,9 @@ export async function POST(req: Request) {
       if (sources.length) writer.write({ type: "data-sources", data: sources })
 
       const modelMessages = await convertToModelMessages(messages, { tools: agentTools })
-      const instructions = buildInstructions(sources, session.user?.name ?? undefined)
+      const instructions = buildInstructions(sources, session.user?.name ?? undefined, workspace)
 
-      for (const candidate of getModelCandidates()) {
+      for (const candidate of getModelCandidates(model)) {
         const result = streamText({
           model: candidate.model,
           instructions,
@@ -121,7 +123,7 @@ export async function POST(req: Request) {
       }
 
       writer.write({ type: "data-meta", data: { mode: "demo", model: "Extractive (no API key)" } })
-      await writeDemoAnswer(writer, question, sources)
+      await writeDemoAnswer(writer, question, sources, workspace?.company)
       writer.write({ type: "finish" })
     },
     onError: (error) => {

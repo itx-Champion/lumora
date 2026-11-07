@@ -1,30 +1,8 @@
-import { sampleDocs } from "@/lib/demo/sample-docs"
+import { templates, type TemplateId } from "@/lib/demo/templates"
 import type { KnowledgeDocument } from "@/lib/rag/types"
 import type { QuestionLog, Workspace } from "./types"
 
 const DAY = 24 * 60 * 60 * 1000
-
-const sampleQuestions = [
-  "How long do refunds take?",
-  "Can we refund an annual plan after 2 months?",
-  "What's the API rate limit on Pro?",
-  "How many vacation days carry over?",
-  "Where is EU customer data stored?",
-  "Who approves refunds over $500?",
-  "How do I reset 2FA for a member?",
-  "What was ARR at the end of Q3?",
-  "What is the parental leave policy?",
-  "Do we have a mobile app?",
-  "What happens after a failed payment?",
-  "Is customer data used to train AI?",
-  "What's our uptime SLA?",
-  "What is the learning budget?",
-  "Do we support SAML for Starter plans?",
-  "What's the office address in Berlin?",
-]
-
-// Questions with no answer in the sample docs show up as knowledge gaps.
-const unanswerable = new Set(["Do we support SAML for Starter plans?", "What's the office address in Berlin?"])
 
 function mulberry32(seed: number) {
   return () => {
@@ -36,9 +14,9 @@ function mulberry32(seed: number) {
   }
 }
 
-export function createSampleDocuments(now = Date.now()): KnowledgeDocument[] {
-  return sampleDocs.map((doc, i) => ({
-    id: `sample-${i + 1}`,
+export function createTemplateDocuments(templateId: TemplateId, now = Date.now()): KnowledgeDocument[] {
+  return templates[templateId].docs.map((doc, i) => ({
+    id: `${templateId}-sample-${i + 1}`,
     title: doc.title,
     fileName: doc.fileName,
     type: doc.type,
@@ -50,17 +28,22 @@ export function createSampleDocuments(now = Date.now()): KnowledgeDocument[] {
 }
 
 /** Three weeks of plausible usage so the analytics dashboard isn't empty on first visit. */
-function createSampleLogs(documents: KnowledgeDocument[], now: number): QuestionLog[] {
-  const rand = mulberry32(2026)
+function createSampleLogs(templateId: TemplateId, documents: KnowledgeDocument[], now: number): QuestionLog[] {
+  const { history, gaps } = templates[templateId]
+  if (!history.length || !documents.length) return []
+
+  const rand = mulberry32(2026 + templateId.length)
+  const pool = [...history, ...gaps]
   const logs: QuestionLog[] = []
   for (let day = 21; day >= 1; day--) {
     const weekday = new Date(now - day * DAY).getDay()
     const base = weekday === 0 || weekday === 6 ? 3 : 9
     const count = Math.round(base + rand() * 6 + (21 - day) * 0.35)
     for (let i = 0; i < count; i++) {
-      const question = sampleQuestions[Math.floor(rand() * sampleQuestions.length)]
-      const answered = !unanswerable.has(question)
+      const question = pool[Math.floor(rand() * pool.length)]
+      const answered = !gaps.includes(question)
       const doc = documents[Math.floor(rand() * documents.length)]
+      const rated = rand() < 0.35
       logs.push({
         id: `sample-log-${day}-${i}`,
         at: now - day * DAY + Math.floor((8 + rand() * 10) * 60 * 60 * 1000),
@@ -69,6 +52,7 @@ function createSampleLogs(documents: KnowledgeDocument[], now: number): Question
         answered,
         mode: "gemini",
         citedDocIds: answered ? [doc.id] : [],
+        rating: rated ? (answered && rand() < 0.88 ? "up" : "down") : undefined,
         sample: true,
       })
     }
@@ -76,13 +60,14 @@ function createSampleLogs(documents: KnowledgeDocument[], now: number): Question
   return logs
 }
 
-export function createSeedWorkspace(now = Date.now()): Workspace {
-  const documents = createSampleDocuments(now)
+export function createSeedWorkspace(templateId: TemplateId = "support", now = Date.now()): Workspace {
+  const documents = createTemplateDocuments(templateId, now)
   return {
     version: 1,
+    template: templateId,
     documents,
     conversations: [],
     actions: [],
-    logs: createSampleLogs(documents, now),
+    logs: createSampleLogs(templateId, documents, now),
   }
 }

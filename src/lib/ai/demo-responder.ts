@@ -88,7 +88,7 @@ const citeLine = (sources: Source[]) =>
  * agent actions from simple intent rules, so the product stays usable with no
  * model provider configured or when every provider is rate-limited.
  */
-export async function writeDemoAnswer(writer: Writer, question: string, sources: Source[]) {
+export async function writeDemoAnswer(writer: Writer, question: string, sources: Source[], company = "our") {
   const evidence = extractAnswer(question, sources)
   const summary = evidence[0]?.text
 
@@ -124,7 +124,7 @@ export async function writeDemoAnswer(writer: Writer, question: string, sources:
       subject: subjectFrom(question),
       body: `Hi ${to === "the customer" ? "there" : to},\n\nThanks for reaching out. ${
         summary ?? "I've looked into your request and will follow up shortly with the details."
-      }\n\nIf you have any other questions, just reply to this email.\n\nBest regards,\nThe Kitelane team`,
+      }\n\nIf you have any other questions, just reply to this email.\n\nBest regards,\nThe ${company} team`,
     }
     await streamText(writer, "Here's a draft based on your workspace documents.")
     const toolCallId = callId()

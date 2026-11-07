@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { motion } from "motion/react"
-import { Check, Copy, FileText, RotateCcw, Search, Zap } from "lucide-react"
+import { Check, Copy, CornerDownRight, FileText, RotateCcw, Search, ThumbsDown, ThumbsUp, Volume2, VolumeX, Zap } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { LumoraUIMessage } from "@/lib/ai/types"
 import type { Source } from "@/lib/rag/types"
 import { LogoMark } from "@/components/shared/logo"
@@ -15,11 +16,29 @@ type MessageProps = {
   isLast: boolean
   onCite: (source: Source) => void
   onRegenerate: () => void
+  rating?: "up" | "down"
+  onRate?: (rating: "up" | "down" | undefined) => void
+  speaking?: boolean
+  onSpeak?: () => void
+  followUps?: string[]
+  onAsk?: (question: string) => void
 }
 
 const modeLabel = { gemini: "Gemini", groq: "Groq", demo: "Demo mode" } as const
 
-export function Message({ message, streaming, isLast, onCite, onRegenerate }: MessageProps) {
+export function Message({
+  message,
+  streaming,
+  isLast,
+  onCite,
+  onRegenerate,
+  rating,
+  onRate,
+  speaking,
+  onSpeak,
+  followUps = [],
+  onAsk,
+}: MessageProps) {
   const [copied, setCopied] = useState(false)
 
   if (message.role === "user") {
@@ -95,6 +114,44 @@ export function Message({ message, streaming, isLast, onCite, onRegenerate }: Me
                   {meta.mode !== "demo" && <span className="hidden sm:inline">· {meta.model}</span>}
                 </span>
               )}
+              {onSpeak && (
+                <button
+                  onClick={onSpeak}
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 hover:text-foreground",
+                    speaking && "text-violet"
+                  )}
+                  aria-label={speaking ? "Stop reading" : "Read answer aloud"}
+                >
+                  {speaking ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
+                </button>
+              )}
+              {onRate && (
+                <>
+                  <button
+                    onClick={() => onRate(rating === "up" ? undefined : "up")}
+                    aria-label="Helpful"
+                    aria-pressed={rating === "up"}
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 hover:text-foreground",
+                      rating === "up" && "text-emerald-500"
+                    )}
+                  >
+                    <ThumbsUp className={cn("size-3.5", rating === "up" && "fill-current")} />
+                  </button>
+                  <button
+                    onClick={() => onRate(rating === "down" ? undefined : "down")}
+                    aria-label="Not helpful"
+                    aria-pressed={rating === "down"}
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 hover:text-foreground",
+                      rating === "down" && "text-amber-500"
+                    )}
+                  >
+                    <ThumbsDown className={cn("size-3.5", rating === "down" && "fill-current")} />
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => {
                   void navigator.clipboard.writeText(text)
@@ -116,6 +173,21 @@ export function Message({ message, streaming, isLast, onCite, onRegenerate }: Me
                 </button>
               )}
             </div>
+
+            {isLast && followUps.length > 0 && onAsk && (
+              <div className="flex flex-col items-start gap-1.5 pt-1">
+                {followUps.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => onAsk(q)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-dashed px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:border-violet/40 hover:text-foreground"
+                  >
+                    <CornerDownRight className="size-3.5 shrink-0 text-violet" />
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

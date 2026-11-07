@@ -1,4 +1,4 @@
-export type DocumentType = "pdf" | "md" | "txt" | "csv" | "json"
+export type DocumentType = "pdf" | "md" | "txt" | "csv" | "json" | "web"
 
 export type KnowledgeDocument = {
   id: string
@@ -8,6 +8,8 @@ export type KnowledgeDocument = {
   content: string
   size: number
   createdAt: number
+  /** Original address for documents imported from a website. */
+  sourceUrl?: string
   sample?: boolean
 }
 

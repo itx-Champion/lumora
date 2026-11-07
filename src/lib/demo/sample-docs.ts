@@ -145,11 +145,3 @@ Main risks for Q4 are slower enterprise procurement cycles at year end and incre
   },
 ]
 
-export const suggestedQuestions = [
-  "Can a customer get a refund on an annual plan after 3 weeks?",
-  "How many vacation days do employees get?",
-  "Where is customer data stored?",
-  "What were the top support ticket categories in Q3?",
-  "Open a ticket for billing to refund an annual plan",
-  "Schedule a meeting with the support team about Q4 priorities",
-]

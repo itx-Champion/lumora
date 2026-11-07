@@ -8,6 +8,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   CheckCircle2,
+  ThumbsUp,
   Clock,
   HelpCircle,
   Inbox,
@@ -80,6 +81,11 @@ function computeStats(ws: Workspace, now: number) {
     answerRateDelta: rate(thisWeek) - rate(lastWeek),
     medianLatency: median(thisWeek.map((l) => l.latencyMs)),
     latencyDelta: delta(median(thisWeek.map((l) => l.latencyMs)), median(lastWeek.map((l) => l.latencyMs))),
+    rated: ws.logs.filter((l) => l.rating).length,
+    helpful: (() => {
+      const rated = ws.logs.filter((l) => l.rating)
+      return rated.length ? rated.filter((l) => l.rating === "up").length / rated.length : 0
+    })(),
     openActions: ws.actions.filter((a) => !a.done).length,
     totalActions: ws.actions.length,
     days,
@@ -140,6 +146,12 @@ export default function OverviewPage() {
       delta: <Delta value={stats.latencyDelta} format={pct} invert />,
     },
     {
+      label: "Helpful answers",
+      value: stats.rated ? pct(stats.helpful) : "—",
+      icon: ThumbsUp,
+      delta: <span className="text-xs text-muted-foreground">{stats.rated} rated by your team</span>,
+    },
+    {
       label: "Open actions",
       value: stats.openActions.toLocaleString(),
       icon: Inbox,
@@ -172,7 +184,7 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {tiles.map((t) => (
           <div key={t.label} className="rounded-2xl border bg-card/60 p-5">
             <div className="flex items-center justify-between text-sm text-muted-foreground">

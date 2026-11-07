@@ -10,10 +10,42 @@ export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ") // "auto-renew" → "auto renew"
     .split(/\s+/)
     .filter((t) => t.length > 1 && !STOP_WORDS.has(t))
     .map(stem)
+}
+
+/**
+ * Query expansion for abbreviations and common phrasings that documents spell
+ * differently. Applied to questions only, so the index stays untouched.
+ */
+const EXPANSIONS: Record<string, string> = {
+  msa: "master services agreement",
+  dpa: "data processing addendum",
+  nda: "non-disclosure agreement confidential",
+  sla: "service level uptime",
+  "2fa": "two-factor authentication",
+  mfa: "two-factor authentication",
+  pto: "paid time off annual leave vacation",
+  vacation: "annual leave",
+  holiday: "leave",
+  wfh: "remote work",
+  cancel: "terminate termination non-renewal notice",
+  cancellation: "terminate termination non-renewal notice",
+  renew: "renewal renews",
+  breach: "incident",
+  salary: "compensation pay",
+  sick: "sick leave",
+}
+
+export function expandQuery(query: string) {
+  const extra = query
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}-]+/u)
+    .map((w) => EXPANSIONS[w] ?? EXPANSIONS[w.replace(/s$/, "")])
+    .filter(Boolean)
+  return extra.length ? `${query} ${extra.join(" ")}` : query
 }
 
 /** Tiny suffix stripper: enough to match "refunds" with "refund" and "billed" with "bill". */
@@ -64,9 +96,25 @@ export class Bm25Index {
    * @param relativeCut drop passages scoring under this fraction of the best match.
    */
   search(query: string, limit = 6, minScore = 3.2, relativeCut = 0.25): Source[] {
-    const queryTerms = [...new Set(tokenize(query))]
+    const originalTerms = new Set(tokenize(query))
+    const queryTerms = [...new Set(tokenize(expandQuery(query)))]
     if (!queryTerms.length) return []
     const n = this.docs.length
+
+    // "Minimum should match": a passage must cover a third of the question's own
+    // terms (expansions count once), so one shared word like "office" isn't enough.
+    const covers = (terms: Map<string, number>) => {
+      let matched = 0
+      let expansionHit = false
+      for (const t of queryTerms) {
+        if (!terms.has(t)) continue
+        if (originalTerms.has(t)) matched++
+        else expansionHit = true
+      }
+      const effective = matched + (expansionHit ? 1 : 0)
+      const size = Math.max(1, originalTerms.size)
+      return effective / size >= 0.34 && (size < 3 || effective >= 2)
+    }
 
     const scored = this.docs
       .map(({ chunk, terms, length }) => {
@@ -76,9 +124,11 @@ export class Bm25Index {
           if (!tf) continue
           const df = this.docFreq.get(term) ?? 0
           const idf = Math.log(1 + (n - df + 0.5) / (df + 0.5))
-          score += (idf * (tf * (this.k1 + 1))) / (tf + this.k1 * (1 - this.b + (this.b * length) / this.avgLength))
+          // Expansion terms help recall but count half, so the user's own words lead the ranking.
+          const weight = originalTerms.has(term) ? 1 : 0.5
+          score += (weight * idf * (tf * (this.k1 + 1))) / (tf + this.k1 * (1 - this.b + (this.b * length) / this.avgLength))
         }
-        return { chunk, score }
+        return { chunk, score: covers(terms) ? score : 0 }
       })
       .filter((r) => r.score >= minScore)
       .sort((a, b) => b.score - a.score)

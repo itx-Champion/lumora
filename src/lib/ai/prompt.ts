@@ -1,6 +1,10 @@
 import type { Source } from "@/lib/rag/types"
 
-export function buildInstructions(sources: Source[], userName?: string) {
+export function buildInstructions(
+  sources: Source[],
+  userName?: string,
+  workspace?: { name: string; company: string }
+) {
   const today = new Date().toISOString().slice(0, 10)
   const context = sources.length
     ? sources
@@ -11,7 +15,8 @@ export function buildInstructions(sources: Source[], userName?: string) {
         .join("\n\n---\n\n")
     : "No relevant passages were found for this question."
 
-  return `You are Lumora, an AI knowledge agent for a company workspace. Today is ${today}.${
+  const org = workspace ? ` for ${workspace.company} (workspace: ${workspace.name})` : " for a company workspace"
+  return `You are Lumora, an AI knowledge agent${org}. Today is ${today}.${
     userName ? ` You are helping ${userName}.` : ""
   }
 

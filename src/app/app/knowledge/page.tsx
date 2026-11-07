@@ -2,24 +2,26 @@
 
 import { Suspense, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { FileCode2, FileSpreadsheet, FileText, Layers, MessageSquare, Search, Trash2 } from "lucide-react"
+import { ExternalLink, FileCode2, FileSpreadsheet, FileText, Globe, Layers, MessageSquare, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/components/app/workspace-provider"
 import { UploadZone } from "@/components/knowledge/upload-zone"
 import { RetrievalTester } from "@/components/knowledge/retrieval-tester"
+import { UrlImport } from "@/components/knowledge/url-import"
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Markdown } from "@/components/chat/markdown"
 import type { KnowledgeDocument } from "@/lib/rag/types"
 import { cn } from "@/lib/utils"
 
-const typeIcon = { pdf: FileText, md: FileCode2, txt: FileText, csv: FileSpreadsheet, json: FileCode2 }
+const typeIcon = { pdf: FileText, md: FileCode2, txt: FileText, csv: FileSpreadsheet, json: FileCode2, web: Globe }
 const typeColor = {
   pdf: "bg-red-500/10 text-red-500",
   md: "bg-violet/10 text-violet",
   txt: "bg-foreground/10 text-muted-foreground",
   csv: "bg-emerald-500/10 text-emerald-500",
   json: "bg-amber-500/10 text-amber-500",
+  web: "bg-sky-500/10 text-sky-500",
 }
 
 function formatSize(bytes: number) {
@@ -80,6 +82,7 @@ function KnowledgeView() {
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-4">
           <UploadZone />
+          <UrlImport />
 
           <div className="rounded-3xl border bg-card/60">
             <div className="flex items-center gap-3 border-b p-4">
@@ -153,9 +156,19 @@ function KnowledgeView() {
                 <SheetDescription>
                   {openDoc.fileName} · {formatSize(openDoc.size)} · {passagesByDoc.get(openDoc.id) ?? 0} passages
                 </SheetDescription>
+                {openDoc.sourceUrl && (
+                  <a
+                    href={openDoc.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet hover:underline"
+                  >
+                    Open original page <ExternalLink className="size-3" />
+                  </a>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto p-6" data-lenis-prevent>
-                {openDoc.type === "md" || openDoc.sample ? (
+                {openDoc.type === "md" || openDoc.type === "web" || openDoc.sample ? (
                   <Markdown text={openDoc.content} sources={[]} onCite={() => {}} />
                 ) : (
                   <pre className="font-sans text-sm leading-relaxed whitespace-pre-wrap">{openDoc.content}</pre>
