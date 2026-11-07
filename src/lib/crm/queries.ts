@@ -146,7 +146,7 @@ export async function getPulse(ctx: CrmContext) {
     signals.push({
       id: "stalled",
       severity: "warning",
-      title: `${stalled.length} deals worth $${Math.round(value / 1000)}k haven't moved in 14+ days`,
+      title: `${stalled.length} deals (together $${Math.round(value / 1000)}k) haven't moved in 14+ days`,
       detail: stalled.slice(0, 3).map((d) => `${d.title} (${name(d.ownerId)})`).join(" · "),
       href: "/app/crm/deals?stalled=1",
       cta: "Review pipeline",
