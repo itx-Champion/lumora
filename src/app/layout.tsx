@@ -30,18 +30,18 @@ const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Lumora — Your company's knowledge, answered by AI",
+    default: "Lumora — AI agent, CRM and help desk for support and sales teams",
     template: "%s · Lumora",
   },
   description:
-    "Lumora turns your documents, wikis and tools into an AI agent that answers with citations and gets work done.",
-  keywords: ["AI agent", "RAG", "knowledge base", "AI assistant", "SaaS"],
+    "Lumora answers from your documents with citations, runs your support inbox and sales pipeline, and lets AI agents act on your CRM through tools and an MCP server.",
+  keywords: ["AI agent", "RAG", "CRM", "help desk", "MCP server", "knowledge base", "SaaS"],
   openGraph: {
     type: "website",
     siteName: "Lumora",
-    title: "Lumora — Your company's knowledge, answered by AI",
+    title: "Lumora — AI agent, CRM and help desk",
     description:
-      "An AI agent that answers from your documents with citations and takes action in your tools.",
+      "Answers with citations, an AI-native CRM and help desk, team roles and audit log, and an MCP server for Claude and Cursor.",
   },
   twitter: { card: "summary_large_image" },
 };

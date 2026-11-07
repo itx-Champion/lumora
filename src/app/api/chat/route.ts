@@ -9,7 +9,8 @@ import {
 } from "ai"
 import { z } from "zod"
 import { auth } from "@/auth"
-import { agentTools, type AgentTools } from "@/lib/ai/tools"
+import { agentActions, buildAgentTools, type AgentTools } from "@/lib/ai/tools"
+import { getContext } from "@/lib/crm/context"
 import { getModelCandidates } from "@/lib/ai/providers"
 import { buildInstructions } from "@/lib/ai/prompt"
 import { writeDemoAnswer } from "@/lib/ai/demo-responder"
@@ -102,6 +103,14 @@ export async function POST(req: Request) {
   const { messages, sources, model, workspace } = parsed.data
   const question = lastUserText(messages)
 
+  // The agent acts on the signed-in member's CRM with their role's permissions.
+  // If the database is unreachable it still answers from documents.
+  const crm = await getContext().catch((error) => {
+    console.error("[chat] CRM unavailable:", error)
+    return null
+  })
+  const agentTools = buildAgentTools(crm)
+
   const stream = createUIMessageStream<LumoraUIMessage>({
     originalMessages: messages,
     execute: async ({ writer }) => {
@@ -109,7 +118,12 @@ export async function POST(req: Request) {
       if (sources.length) writer.write({ type: "data-sources", data: sources })
 
       const modelMessages = await convertToModelMessages(messages, { tools: agentTools })
-      const instructions = buildInstructions(sources, session.user?.name ?? undefined, workspace)
+      const instructions = buildInstructions(
+        sources,
+        crm?.member.name ?? session.user?.name ?? undefined,
+        workspace,
+        crm ? { org: crm.org.name, role: crm.member.role, title: crm.member.title } : undefined
+      )
 
       for (const candidate of getModelCandidates(model)) {
         const result = streamText({
@@ -134,7 +148,7 @@ export async function POST(req: Request) {
       }
 
       writer.write({ type: "data-meta", data: { mode: "demo", model: "Extractive (no API key)" } })
-      await writeDemoAnswer(writer, question, sources, workspace?.company)
+      await writeDemoAnswer(writer, question, sources, workspace?.company, agentActions(crm))
       writer.write({ type: "finish" })
     },
     onError: (error) => {

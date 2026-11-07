@@ -1,20 +1,43 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { CornerDownLeft, FileText, MessageSquare, Plus, Search, Sparkles, type LucideIcon } from "lucide-react"
+import { Building2, Contact, CornerDownLeft, FileText, Inbox, KanbanSquare, Loader2, MessageSquare, Plus, Search, Sparkles, type LucideIcon } from "lucide-react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { searchCrmAction } from "@/lib/crm/actions/crm"
+import { money, stageLabel } from "@/lib/crm/constants"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "./workspace-provider"
 import { appNav } from "./nav"
+import { useViewer } from "./viewer"
+
+type CrmHits = Extract<Awaited<ReturnType<typeof searchCrmAction>>, { ok: true }>["data"]
 
 type Command = { id: string; group: string; label: string; hint?: string; icon: LucideIcon; run: () => void }
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const router = useRouter()
   const { workspace, template } = useWorkspace()
+  const viewer = useViewer()
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
+  const [hits, setHits] = useState<{ q: string; data: CrmHits } | null>(null)
+  const trimmed = query.trim()
+  const searching = Boolean(viewer) && trimmed.length >= 2 && hits?.q !== trimmed
+
+  // Live CRM search across contacts, companies, deals and tickets.
+  useEffect(() => {
+    if (!viewer || trimmed.length < 2) return
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      const result = await searchCrmAction(trimmed)
+      if (!cancelled && result.ok) setHits({ q: trimmed, data: result.data })
+    }, 180)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [trimmed, viewer])
 
   const commands = useMemo<Command[]>(() => {
     const go = (href: string) => () => {
@@ -24,7 +47,9 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     const ask = (q: string) => go(`/app/chat?new=1&q=${encodeURIComponent(q)}`)
     return [
       { id: "new", group: "Actions", label: "New chat", icon: Plus, run: go("/app/chat?new=1") },
-      ...appNav.map((n) => ({
+      ...appNav
+        .filter((n) => (!n.crm || viewer) && (!n.permission || viewer?.permissions.includes(n.permission)))
+        .map((n) => ({
         id: n.href,
         group: "Navigate",
         label: n.label,
@@ -55,12 +80,25 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         run: go(`/app/knowledge?doc=${d.id}`),
       })) ?? []),
     ]
-  }, [workspace, template, router, onOpenChange])
+  }, [workspace, template, router, onOpenChange, viewer])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return commands
-    const matches = commands.filter((c) => `${c.label} ${c.hint ?? ""}`.toLowerCase().includes(q))
+    const go = (href: string) => () => {
+      onOpenChange(false)
+      router.push(href)
+    }
+    const crm: Command[] =
+      hits && hits.q === query.trim()
+        ? [
+            ...hits.data.contacts.map((c) => ({ id: `con:${c.id}`, group: "Contacts", label: c.name, hint: [c.title, c.company].filter(Boolean).join(" · "), icon: Contact, run: go(`/app/crm/contacts/${c.id}`) })),
+            ...hits.data.companies.map((c) => ({ id: `co:${c.id}`, group: "Companies", label: c.name, hint: c.industry ?? c.domain ?? "", icon: Building2, run: go(`/app/crm/companies/${c.id}`) })),
+            ...hits.data.deals.map((d) => ({ id: `deal:${d.id}`, group: "Deals", label: d.title, hint: `${stageLabel(d.stage)} · ${money.format(d.value)}`, icon: KanbanSquare, run: go(`/app/crm/deals?deal=${d.id}`) })),
+            ...hits.data.tickets.map((t) => ({ id: `tkt:${t.id}`, group: "Tickets", label: `#${t.number} ${t.subject}`, hint: t.status, icon: Inbox, run: go(`/app/crm/inbox?t=${t.id}&status=all`) })),
+          ]
+        : []
+    const matches = [...commands.filter((c) => `${c.label} ${c.hint ?? ""}`.toLowerCase().includes(q)), ...crm]
     // Any free text can be sent straight to the assistant.
     const askAnything: Command = {
       id: "ask:free",
@@ -73,7 +111,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
       },
     }
     return [...matches, askAnything]
-  }, [commands, query, router, onOpenChange])
+  }, [commands, query, router, onOpenChange, hits])
 
   const groups = useMemo(() => {
     const map = new Map<string, Command[]>()
@@ -117,9 +155,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 filtered[activeIndex]?.run()
               }
             }}
-            placeholder="Search or ask anything…"
+            placeholder={viewer ? "Search contacts, deals, tickets or ask anything…" : "Search or ask anything…"}
             className="h-14 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
           />
+          {searching && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
           <kbd className="rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">ESC</kbd>
         </div>
         <div className="max-h-[360px] overflow-y-auto p-2" data-lenis-prevent>

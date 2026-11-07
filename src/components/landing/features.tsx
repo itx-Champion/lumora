@@ -202,19 +202,19 @@ const features = [
     className: "md:col-span-2",
     visual: <ActionsVisual />,
     title: "Agents that take action",
-    body: "Lumora doesn't stop at answers. It opens tickets, drafts replies and schedules follow-ups through tool calls.",
+    body: "Lumora doesn't stop at answers. It opens tickets, moves deals, drafts replies and books follow-ups in your CRM through tool calls.",
   },
   {
     className: "md:col-span-2",
     visual: <SourcesVisual />,
-    title: "Connect every source",
-    body: "PDFs, docs, wikis, help centers and databases — indexed and kept in sync.",
+    title: "MCP server & REST API",
+    body: "Connect Claude, Cursor or your own scripts to the CRM with scoped API keys. Same rules, same audit trail.",
   },
   {
     className: "md:col-span-2",
     visual: <SecurityVisual />,
     title: "Private by design",
-    body: "Workspace isolation, role-based access and rate limiting. Your data never trains a model.",
+    body: "Multi-tenant isolation, five roles enforced on the server, admin \"view as\", rate limits and an audit log of every change.",
   },
   {
     className: "md:col-span-2",
@@ -226,8 +226,8 @@ const features = [
     className: "md:col-span-6",
     wide: true,
     visual: <AnalyticsVisual />,
-    title: "Know what your team needs",
-    body: "See what people ask, which answers land and where your docs have gaps — then fix them before the next ticket arrives.",
+    title: "A CRM that tells you what to do next",
+    body: "Pulse watches SLAs, stalled deals, hot leads and at-risk accounts, and an AI briefing turns them into a prioritized plan for the day.",
   },
 ]
 
@@ -242,7 +242,7 @@ export function Features() {
               One assistant that <Accent>knows</Accent> and <Accent>does</Accent>
             </>
           }
-          description="Lumora combines retrieval-augmented answers with agentic actions, so questions turn into finished work."
+          description="Lumora combines retrieval-augmented answers with an AI-native CRM, help desk and team admin, so questions turn into finished work."
         />
 
         <div className="mt-16 grid gap-4 md:grid-cols-6">

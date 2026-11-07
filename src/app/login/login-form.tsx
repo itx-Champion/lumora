@@ -16,6 +16,20 @@ function GitHubIcon() {
   )
 }
 
+/**
+ * Each browser gets its own sandbox organization, even when visitors keep the default
+ * name and email, so one visitor's admin changes never show up for another.
+ */
+function sandboxId() {
+  const key = "lumora-sandbox-id"
+  let id = localStorage.getItem(key)
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem(key, id)
+  }
+  return id
+}
+
 export function LoginForm({ githubEnabled }: { githubEnabled: boolean }) {
   const router = useRouter()
   const [name, setName] = useState("Alex Morgan")
@@ -25,7 +39,7 @@ export function LoginForm({ githubEnabled }: { githubEnabled: boolean }) {
   async function enterDemo(e: React.FormEvent) {
     e.preventDefault()
     setPending("demo")
-    const res = await signIn("demo", { name, email, redirect: false })
+    const res = await signIn("demo", { name, email, sandbox: sandboxId(), redirect: false })
     if (res?.error) {
       toast.error("Please enter a valid name and email.")
       setPending(null)
@@ -101,8 +115,8 @@ export function LoginForm({ githubEnabled }: { githubEnabled: boolean }) {
       )}
 
       <p className="mt-8 text-xs leading-relaxed text-muted-foreground">
-        Your workspace is stored privately in this browser. Nothing you upload is shared with other
-        visitors.
+        You get a private sandbox: documents stay in this browser, and the CRM is a separate
+        organization with its own sample team and data. Nothing is shared with other visitors.
       </p>
     </div>
   )

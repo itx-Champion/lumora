@@ -70,7 +70,9 @@ function toMarkdown(title: string, messages: LumoraUIMessage[]) {
     lines.push(`**Lumora:** ${textOf(m)}`, "")
     for (const part of m.parts) {
       if (isToolPart(part) && part.state === "output-available") {
-        lines.push(`> Action \`${part.type.replace("tool-", "")}\` → ${part.output.id}`, "")
+        const output = part.output as Record<string, unknown>
+        const ref = output.id ?? output.deal ?? output.title ?? "done"
+        lines.push(`> Action \`${part.type.replace("tool-", "")}\` → ${String(ref)}`, "")
       }
     }
     const sources = m.parts.find((p) => p.type === "data-sources")?.data ?? []
@@ -104,6 +106,11 @@ export function Chat({ conversationId, initialMessages, initialQuestion }: ChatP
     onFinish: ({ messages, message, isError, isAbort }) => {
       store.saveConversation(conversationId, messages)
       store.recordActions(extractActions(messages, conversationId))
+      // Give a new chat its own URL only once the answer is saved. Changing the URL while
+      // a request is in flight re-renders the route and can drop the pending answer.
+      if (!new URLSearchParams(window.location.search).get("c")) {
+        router.replace(`/app/chat?c=${conversationId}`, { scroll: false })
+      }
 
       // Questions asked by voice are answered by voice.
       if (voiceTurn.current && !isError && !isAbort) voice.speak(message.id, textOf(message))
@@ -154,7 +161,6 @@ export function Chat({ conversationId, initialMessages, initialQuestion }: ChatP
     setInput("")
     clearError()
     void sendMessage({ text: question }, { body: requestBody(sources) })
-    if (messages.length === 0) router.replace(`/app/chat?c=${conversationId}`, { scroll: false })
   }
 
   function retry() {
@@ -171,11 +177,15 @@ export function Chat({ conversationId, initialMessages, initialQuestion }: ChatP
   })
 
   // Auto-send a question passed in the URL (from the command palette or suggestions).
+  // Deferred and cancellable, so a mount/unmount/remount cycle (Strict Mode, route
+  // re-renders) sends exactly once from the instance that stays mounted.
   useEffect(() => {
-    if (initialQuestion && !autoSent.current && workspace) {
+    if (!initialQuestion || autoSent.current || !workspace) return
+    const timer = setTimeout(() => {
       autoSent.current = true
       send(initialQuestion)
-    }
+    }, 0)
+    return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuestion, workspace])
 

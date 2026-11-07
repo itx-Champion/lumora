@@ -1,7 +1,7 @@
 /** Central place for product and author details used across the site. */
 export const site = {
   name: "Lumora",
-  tagline: "Your company's knowledge, answered by AI",
+  tagline: "The AI agent and CRM for support and sales teams",
   author: {
     name: "Ahmad Sharif",
     role: "AI Engineer & Full-Stack Developer",

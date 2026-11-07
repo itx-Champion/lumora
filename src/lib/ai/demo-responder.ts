@@ -2,7 +2,7 @@ import "server-only"
 import type { UIMessageStreamWriter } from "ai"
 import { tokenize } from "@/lib/rag/bm25"
 import type { Source } from "@/lib/rag/types"
-import { makeEmail, makeMeeting, makeTicket } from "./tools"
+import { agentActions, type AgentActions } from "./tools"
 import type { LumoraUIMessage } from "./types"
 
 type Writer = UIMessageStreamWriter<LumoraUIMessage>
@@ -88,9 +88,11 @@ const citeLine = (sources: Source[]) =>
  * agent actions from simple intent rules, so the product stays usable with no
  * model provider configured or when every provider is rate-limited.
  */
-export async function writeDemoAnswer(writer: Writer, question: string, sources: Source[], company = "our") {
+export async function writeDemoAnswer(writer: Writer, question: string, sources: Source[], company = "our", actions: AgentActions = agentActions(null)) {
   const evidence = extractAnswer(question, sources)
   const summary = evidence[0]?.text
+
+  if (await writeCrmAnswer(writer, question, actions)) return
 
   if (/\b(ticket|escalate|log an? issue|file an? issue)\b/i.test(question)) {
     const team = detectTeam(question)
@@ -108,11 +110,11 @@ export async function writeDemoAnswer(writer: Writer, question: string, sources:
     const toolCallId = callId()
     writer.write({ type: "tool-input-available", toolCallId, toolName: "createTicket", input })
     await sleep(600)
-    const output = makeTicket(input)
+    const output = await actions.createTicket(input)
     writer.write({ type: "tool-output-available", toolCallId, output })
     await streamText(
       writer,
-      `\n\nDone — **${output.id}** is open for ${team} with priority ${input.priority}.${citeLine(sources)} You'll find it in **Actions**.`
+      `\n\nDone — **${output.id}** is open for ${team} with priority ${input.priority}${output.assignee ? ` and assigned to ${output.assignee}` : ""}.${citeLine(sources)} You'll find it in ${output.href ? "the CRM **Inbox**" : "**Actions**"}.`
     )
     return
   }
@@ -130,7 +132,7 @@ export async function writeDemoAnswer(writer: Writer, question: string, sources:
     const toolCallId = callId()
     writer.write({ type: "tool-input-available", toolCallId, toolName: "draftEmail", input })
     await sleep(500)
-    const output = makeEmail(input)
+    const output = await actions.draftEmail(input)
     writer.write({ type: "tool-output-available", toolCallId, output })
     await streamText(writer, `\n\nThe draft is saved in **Actions** — review it before sending.${citeLine(sources)}`)
     return
@@ -150,7 +152,7 @@ export async function writeDemoAnswer(writer: Writer, question: string, sources:
     const toolCallId = callId()
     writer.write({ type: "tool-input-available", toolCallId, toolName: "scheduleMeeting", input })
     await sleep(500)
-    const output = makeMeeting(input)
+    const output = await actions.scheduleMeeting(input)
     writer.write({ type: "tool-output-available", toolCallId, output })
     await streamText(writer, `\n\nScheduled **${input.date} at ${input.time}** for ${input.durationMinutes} minutes.`)
     return
@@ -167,3 +169,87 @@ export async function writeDemoAnswer(writer: Writer, question: string, sources:
   const body = evidence.map((e) => `${e.text.replace(/[.]?$/, "")} [${e.n}].`).join(" ")
   await streamText(writer, `Here's what your documents say:\n\n${body}`)
 }
+
+type Stage = "new" | "qualified" | "proposal" | "negotiation" | "won" | "lost"
+
+async function runTool<T>(writer: Writer, toolName: string, input: Record<string, unknown>, run: () => Promise<T>) {
+  const toolCallId = callId()
+  writer.write({ type: "tool-input-available", toolCallId, toolName, input })
+  const output = await run()
+  writer.write({ type: "tool-output-available", toolCallId, output })
+  return output
+}
+
+/** Keyless handling of CRM requests, mirroring what the model would do with the same tools. */
+async function writeCrmAnswer(writer: Writer, question: string, actions: AgentActions): Promise<boolean> {
+  const q = question.toLowerCase()
+
+  if (/\b(pipeline|forecast|win rate)\b/.test(q)) {
+    await streamText(writer, "Pulling the pipeline from the CRM.")
+    const out = await runTool(writer, "pipelineSummary", {}, () => actions.pipelineSummary())
+    if ("error" in out) {
+      await streamText(writer, `\n\n${out.error}`)
+      return true
+    }
+    const top = out.topDeals[0]
+    await streamText(
+      writer,
+      `\n\nOpen pipeline is **${out.openPipeline}** with a weighted forecast of **${out.weightedForecast}** and a ${out.winRate} win rate.${top ? ` The biggest open deal is **${top.title}** (${top.value}, ${top.stage}).` : ""}`
+    )
+    return true
+  }
+
+  const createsTicket = /\b(open|create|file|log|raise) an? (new )?(ticket|issue)\b/.test(q)
+  if (!createsTicket && /\btickets?\b/.test(q) && /\b(open|urgent|pending|sla|breach|queue)\b/.test(q)) {
+    await streamText(writer, "Here are the open tickets, most urgent first.")
+    const out = await runTool(writer, "listOpenTickets", { limit: 6 }, () => actions.listOpenTickets({ limit: 6 }))
+    const urgent = out.tickets.filter((t) => t.priority === "urgent").length
+    await streamText(writer, `\n\n${out.tickets.length} shown, ${urgent} urgent. Open the **Inbox** to reply with an AI-drafted answer.`)
+    return true
+  }
+
+  const dealMatch = question.match(/\b(?:move|mark|set|update)\s+(?:the\s+)?(.+?)\s+(?:deal\s+)?(?:to|as)\s+(new|qualified|proposal|negotiation|won|lost)\b/i)
+  if (dealMatch) {
+    const deal = dealMatch[1].replace(/\bdeal\b/i, "").trim()
+    const stage = dealMatch[2].toLowerCase() as Stage
+    await streamText(writer, `Updating ${deal} in the pipeline.`)
+    const out = await runTool(writer, "updateDealStage", { deal, stage }, () => actions.updateDealStage({ deal, stage }))
+    if ("deal" in out) await streamText(writer, `\n\nDone — **${out.deal}** moved from ${out.from} to **${out.to}**. Automations for that stage have run.`)
+    else await streamText(writer, `\n\n${out.error}`)
+    return true
+  }
+
+  const task = question.match(/\b(?:remind me to|create a task to|add a task to)\s+(.+?)(?:\s+(tomorrow|today|next week))?[.?!]?$/i)
+  if (task) {
+    const when = task[2]?.toLowerCase()
+    const dueInDays = when === "today" ? 0 : when === "next week" ? 7 : 1
+    const title = capitalize(task[1])
+    await streamText(writer, "Adding that to your tasks.")
+    const out = await runTool(writer, "createTask", { title, dueInDays }, () => actions.createTask({ title, dueInDays }))
+    if ("error" in out) await streamText(writer, `\n\n${out.error}`)
+    else await streamText(writer, `\n\nCreated **${out.title}** for ${out.assignee}. It's in **Tasks**.`)
+    return true
+  }
+
+  const lookup = question.match(/\b(?:who is|look up|find|tell me about|status of)\s+(.+?)[?.!]?$/i)
+  if (lookup) {
+    const query = lookup[1].replace(/\b(the|account|customer|contact|deal)\b/gi, "").trim()
+    if (query.length < 2) return false
+    await streamText(writer, `Searching the CRM for “${query}”.`)
+    const out = await runTool(writer, "searchCrm", { query }, () => actions.searchCrm({ query }))
+    const hits = out.contacts.length + out.companies.length + out.deals.length + out.tickets.length
+    if (!hits) {
+      await streamText(writer, "\n\nNothing in the CRM matches that.")
+      return true
+    }
+    const c = out.contacts[0]
+    const d = out.deals[0]
+    await streamText(
+      writer,
+      `\n\nFound ${hits} match${hits === 1 ? "" : "es"}.${c ? ` **${c.name}** is ${c.title ?? "a contact"}${c.company ? ` at ${c.company}` : ""} (${c.lifecycle}, lead score ${c.score}).` : ""}${d ? ` Top deal: **${d.title}** (${d.stage}).` : ""}`
+    )
+    return true
+  }
+  return false
+}
+

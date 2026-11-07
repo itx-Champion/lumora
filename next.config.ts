@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  // PGlite ships WASM and data files; load it from node_modules instead of bundling it.
+  serverExternalPackages: ["@electric-sql/pglite"],
   async redirects() {
     // Sign-up and sign-in share one flow for the demo workspace.
     return [{ source: "/signup", destination: "/login", permanent: false }];
@@ -14,7 +16,7 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
         ],
       },
     ];

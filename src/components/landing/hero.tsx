@@ -77,7 +77,7 @@ export function Hero() {
               <Sparkles className="size-3" />
               New
             </span>
-            <span className="text-shimmer font-medium">Agents that take action in your tools</span>
+            <span className="text-shimmer font-medium">New: AI-native CRM, help desk and MCP server</span>
             <ArrowRight className="size-3 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </motion.a>
 
@@ -113,8 +113,8 @@ export function Hero() {
             {...fadeUp(0.95)}
             className="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground"
           >
-            Lumora connects to your docs, wikis and apps, then answers every question with
-            sources you can trust — and gets the follow-up work done for you.
+            Lumora answers every question from your docs with sources you can trust, runs your
+            support inbox and sales pipeline, and gets the follow-up work done for your whole team.
           </motion.p>
 
           <motion.div {...fadeUp(1.1)} className="mt-10 flex flex-wrap items-center gap-3">
